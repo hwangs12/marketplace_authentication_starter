@@ -1,0 +1,23 @@
+version: latest
+
+services:
+  mongo:
+    container_name: mongodb
+    image: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodbdata:/data/db
+    command: [--auth]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: rootpassword
+    restart: always
+
+volumes:
+  mongodbdata:
+
+networks:
+  default:
+    name: mongo-network
+    external: true
