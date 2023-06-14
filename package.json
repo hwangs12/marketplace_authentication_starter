@@ -7,7 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "transpile": "tsc",
     "start:transpile": "tsc --watch",
-    "start:execute": "nodemon build/index.js"
+    "start:fart": "nodemon build/index.js"
   },
   "author": "Jun Hwang",
   "license": "ISC",

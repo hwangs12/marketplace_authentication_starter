@@ -3,25 +3,43 @@ import { User } from "./models/user";
 import { Cart } from "./models/cart";
 import { dbConnect } from "./database/connection";
 import authenticate from "./authenticate";
-
-const {
-  validateUserSignUp,
+import { comparePassword } from "./utils/password";
+import {
   validateUserSignIn,
-} = require("../middlewares/validation/user");
-const { check, validationResult } = require("express-validator");
+  validateUserSignUp,
+} from "./middlewares/validation/user";
+import { check, validationResult } from "express-validator";
 
 const app = express();
 app.use(express.json());
 dbConnect();
+// Add a user to DB
+app.post("/users", validateUserSignUp, async (req: Request, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { name, email, password } = req.body;
+  const emailExistsInDB = await User.isThisEmailInUse(email);
+  if (emailExistsInDB)
+    return res.json({
+      success: false,
+      message: "This email is already in use.",
+    });
+  try {
+    // const { name, email, password, confirmpassword } = req.body;
+    const user = new User({ name, email, password });
+    await user.save();
+    return res.status(200).json({ message: "New account has been created" });
+  } catch (error) {
+    console.log(error);
+  }
+});
+
 app.use((req: Request, res: Response, next) => {
   authenticate(req, res, next);
 });
-
-const test = async (email: string, password: string) => {
-  const user = await User.findOne({ email: email });
-  const result = await user.comparePassword(password);
-  console.log("result is", result);
-};
 
 // Get list of all users
 app.get("/users", async (req, res) => {
@@ -34,30 +52,6 @@ app.get("/users", async (req, res) => {
 });
 
 // test("hello15@gmail.com", "12341234");
-
-// Add a user to DB
-app.post("/users", validateUserSignUp, async (req: Request, res: Response) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  const { name, email, password } = req.body;
-  const isNewUser = await User.isThisEmailInUse(email);
-  if (!isNewUser)
-    return res.json({
-      success: false,
-      message: "This email is already in user try sign in",
-    });
-  try {
-    // const { name, email, password, confirmpassword } = req.body;
-    const user = new User({ name, email, password });
-    await user.save();
-    return res.status(200).json({ message: "New account has been created" });
-  } catch (error) {
-    console.log(error);
-  }
-});
 
 app.post("/carts", async (req: Request, res: Response) => {
   try {
@@ -107,16 +101,25 @@ app.post(
     if (!user)
       return res.json({
         success: false,
-        message: "user not found with the given email",
+        message: "invalid login",
       });
 
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await comparePassword(password, user.password);
     if (!isMatch)
       return res.json({
         success: false,
-        message: "user not found with the given email/password",
+        message: "invalid login",
       });
-
+    // the token should have information about created time, expiration time, user email (all encrypted)
+    const token_raw = {
+      created: Date.now(),
+      expiration: Date.now() + 3600000,
+      useremail: email,
+    };
+    const encoded_token = Buffer.from(JSON.stringify(token_raw)).toString(
+      "base64"
+    );
+    res.set("user-token", encoded_token);
     res.json({
       success: true,
       message: "You have successfully logged in",

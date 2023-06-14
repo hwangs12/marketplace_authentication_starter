@@ -1,6 +1,6 @@
-const { check, validationResult } = require("express-validator");
+import { check, validationResult } from "express-validator";
 
-exports.validateUserSignUp = [
+export const validateUserSignUp = [
   check("name")
     .trim()
     .not()
@@ -22,7 +22,7 @@ exports.validateUserSignUp = [
   }),
 ];
 
-exports.validateUserSignIn = [
+export const validateUserSignIn = [
   check("email").trim().isEmail().withMessage("Email and password required"),
   check("password").trim().not().isEmpty().withMessage("Password required"),
 ];
