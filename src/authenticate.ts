@@ -1,5 +1,6 @@
 function authenticate(req: any, res: any, next: any) {
-  console.log(req.header("Authorization"));
+  // authorization token should be dynamic
+  // token expiration date -> invalid once expired, user have to relogin to obtain the token
   if (req.header("Authorization") === "Basic c3VueW9uZ3Bhcms6MTIzNDU=") {
     next();
   } else {

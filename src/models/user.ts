@@ -1,12 +1,11 @@
 import { Schema, model, Model } from "mongoose";
-const bcrypt = require("bcrypt");
+import bcrypt from "bcrypt";
 
-interface IUser {
+export interface IUser {
   name: string;
   email: string;
   password: string;
-  confirmpassword: String;
-  comparePassword(password: string): Promise<boolean>;
+  // confirmpassword: string;
 }
 
 interface IUserModel extends Model<IUser> {
@@ -20,58 +19,23 @@ const userSchema = new Schema<IUser>({
   // confirmpassword: { type: String, required: true },
 });
 
-userSchema.pre("save", function (next) {
-  if (this.isModified("password") || this.isModified("email")) {
-    if (this.isModified("password")) {
-      bcrypt.hash(this.password, 8, (err, hash) => {
-        if (err) return next(err);
-        this.password = hash;
-        // bcrypt.hash(this.confirmpassword, 8, (err, hash) => {
-        //   if (err) return next(err);
-        //   this.confirmpassword = hash;
-        if (this.isModified("email")) {
-          bcrypt.hash(this.email, 8, (err, hash) => {
-            if (err) return next(err);
-            this.email = hash;
-            next();
-          });
-        } else {
-          next();
-        }
-      });
-    } else {
-      bcrypt.hash(this.email, 8, (err, hash) => {
-        if (err) return next(err);
-        this.email = hash;
-        next();
-      });
-    }
-  } else {
-    next();
-  }
+userSchema.pre("save", async function (next) {
+  const hash = await bcrypt.hash(this.password, 8);
+  this.password = hash;
+  next();
 });
 
 //email/pw > encrypt to hash, user email/pw in RN and encrypt > send to auth  > decrypt > compare
-userSchema.methods.comparePassword = async function (password) {
-  if (!password) throw new Error("Password is missing");
-
-  try {
-    const result = await bcrypt.compare(password, this.password);
-    return result;
-  } catch (error: any) {
-    console.log("Error while compaing password", error.message);
-  }
-};
-
 userSchema.statics.isThisEmailInUse = async function (email: string) {
   if (!email) throw new Error("Invalid Email");
   try {
     const user = await this.findOne({ email: email });
-    if (user) return false;
-    return true;
+    console.log(user);
+    if (user) return true;
+    return false;
   } catch (error: any) {
     console.log("error inside isThisEmailInUse method", error.message);
-    return false;
+    throw new Error("userDbStaticFnError");
   }
 };
 
