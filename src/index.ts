@@ -8,7 +8,8 @@ import {
   validateUserSignIn,
   validateUserSignUp,
 } from "./middlewares/validation/user";
-import { check, validationResult } from "express-validator";
+import { validationResult } from "express-validator";
+import crypto from "crypto";
 
 const app = express();
 app.use(express.json());
@@ -36,6 +37,56 @@ app.post("/users", validateUserSignUp, async (req: Request, res: Response) => {
     console.log(error);
   }
 });
+
+app.post(
+  "/sign-in",
+  validateUserSignIn,
+  async (req: Request, res: Response) => {
+    const { email, password } = req.body;
+    const user = await User.findOne(
+      { email },
+      {
+        _id: 0,
+        name: 1,
+        email: 1,
+        password: 1,
+      }
+    );
+
+    console.log(user);
+
+    if (!user)
+      return res.json({
+        success: false,
+        message: "invalid login",
+      });
+
+    const isMatch = await comparePassword(password, user.password);
+    if (!isMatch)
+      return res.json({
+        success: false,
+        message: "invalid login",
+      });
+    // the token should have information about created time, expiration time, user email (all encrypted)
+    const session_rule = `{
+      created: ${Date.now()},
+      expiration: ${Date.now() + 3600000},
+      useremail: ${email},
+    }`;
+    let iv = Buffer.from(user.password.substring(32, 48));
+    let now = Date.now();
+    let secret = Buffer.from(user.password.substring(0, 19) + now.toString());
+    console.log(user.password.substring(0, 19) + now.toString());
+    let cipher = crypto.createCipheriv("aes-256-cbc", secret, iv);
+    let encrypted = cipher.update(session_rule);
+    encrypted = Buffer.concat([encrypted, cipher.final()]);
+    res.set("user-token", encrypted.toString("hex") + iv.toString("hex"));
+    res.json({
+      success: true,
+      message: `You have successfully logged in. Welcome ${user.name}`,
+    });
+  }
+);
 
 app.use((req: Request, res: Response, next) => {
   authenticate(req, res, next);
@@ -90,43 +141,6 @@ app.put("/users/:userId", async (req: Request, res: Response) => {
     console.log(error);
   }
 });
-
-app.post(
-  "/sign-in",
-  validateUserSignIn,
-  async (req: Request, res: Response) => {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
-
-    if (!user)
-      return res.json({
-        success: false,
-        message: "invalid login",
-      });
-
-    const isMatch = await comparePassword(password, user.password);
-    if (!isMatch)
-      return res.json({
-        success: false,
-        message: "invalid login",
-      });
-    // the token should have information about created time, expiration time, user email (all encrypted)
-    const token_raw = {
-      created: Date.now(),
-      expiration: Date.now() + 3600000,
-      useremail: email,
-    };
-    const encoded_token = Buffer.from(JSON.stringify(token_raw)).toString(
-      "base64"
-    );
-    res.set("user-token", encoded_token);
-    res.json({
-      success: true,
-      message: "You have successfully logged in",
-      user: user,
-    });
-  }
-);
 
 app.listen(4000, () => {
   console.log("listening to port 4000");
