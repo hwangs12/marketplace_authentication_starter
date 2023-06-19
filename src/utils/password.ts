@@ -7,6 +7,6 @@ export const comparePassword = async function (password: any, hash: any) {
     const result = await bcrypt.compare(password, hash);
     return result;
   } catch (error: any) {
-    console.log("Error while compaing password", error.message);
+    console.log("Erro while compaing password", error.message);
   }
 };

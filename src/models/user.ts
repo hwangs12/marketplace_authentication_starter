@@ -30,7 +30,6 @@ userSchema.statics.isThisEmailInUse = async function (email: string) {
   if (!email) throw new Error("Invalid Email");
   try {
     const user = await this.findOne({ email: email });
-    console.log(user);
     if (user) return true;
     return false;
   } catch (error: any) {
