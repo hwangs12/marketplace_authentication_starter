@@ -95,11 +95,7 @@ export const authenticate = async (req: any, res: any, next: any) => {
   const encryptedSecret = { cipherText: secretCipherText, iv: secretIv };
   let secret = await decrypt(encryptedSecret, req.ip);
   let textToDecipher = Buffer.from(session_definition, "hex");
-  let decipher = crypto.createDecipheriv(
-    "aes-256-cbc",
-    Buffer.from(secret, "hex"),
-    iv
-  );
+  let decipher = crypto.createDecipheriv("aes-256-cbc", secret, iv);
 
   let decrypted = decipher.update(textToDecipher);
   decrypted = Buffer.concat([decrypted, decipher.final()]);
