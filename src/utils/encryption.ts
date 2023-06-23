@@ -1,66 +1,77 @@
-import crypto from "crypto";
+import crypto, { Decipher } from "crypto";
+import { AuthenticationError } from "../errors";
 
 // derive string key
 async function deriveKey(password: string) {
-  console.log("am i ever hit?????????????????????????");
-  const algo = {
-    name: "PBKDF2",
-    hash: "SHA-256",
-    salt: new TextEncoder().encode("a-unique-salt"),
-    iterations: 1000,
-  };
-  return crypto.subtle.deriveKey(
-    algo,
-    await crypto.subtle.importKey(
-      "raw",
-      new TextEncoder().encode(password),
+  try {
+    const algo = {
+      name: "PBKDF2",
+      hash: "SHA-256",
+      salt: new TextEncoder().encode("a-unique-salt"),
+      iterations: 1000,
+    };
+    return crypto.subtle.deriveKey(
+      algo,
+      await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(password),
+        {
+          name: algo.name,
+        },
+        false,
+        ["deriveKey"]
+      ),
       {
-        name: algo.name,
+        name: "AES-GCM",
+        length: 256,
       },
       false,
-      ["deriveKey"]
-    ),
-    {
-      name: "AES-GCM",
-      length: 256,
-    },
-    false,
-    ["encrypt", "decrypt"]
-  );
+      ["encrypt", "decrypt"]
+    );
+  } catch (error) {
+    throw new AuthenticationError("Unauthorized");
+  }
 }
 
 // Encrypt function
 async function encrypt(text: string, password: string) {
-  const algo = {
-    name: "AES-GCM",
-    length: 256,
-    iv: crypto.getRandomValues(new Uint8Array(12)),
-  };
-  return {
-    cipherText: await crypto.subtle.encrypt(
-      algo,
-      await deriveKey(password),
-      new TextEncoder().encode(text)
-    ),
-    iv: algo.iv,
-  };
+  try {
+    const algo = {
+      name: "AES-GCM",
+      length: 256,
+      iv: crypto.getRandomValues(new Uint8Array(12)),
+    };
+    return {
+      cipherText: await crypto.subtle.encrypt(
+        algo,
+        await deriveKey(password),
+        new TextEncoder().encode(text)
+      ),
+      iv: algo.iv,
+    };
+  } catch (error) {
+    throw new AuthenticationError("Unauthorized");
+  }
 }
 
 // Decrypt function
 async function decrypt(encrypted: any, password: string) {
-  console.log("am i ever hit?????????????????????");
-  const algo = {
-    name: "AES-GCM",
-    length: 256,
-    iv: encrypted.iv,
-  };
-  return new TextDecoder().decode(
-    await crypto.subtle.decrypt(
-      algo,
-      await deriveKey(password),
-      encrypted.cipherText
-    )
-  );
+  try {
+    const algo = {
+      name: "AES-GCM",
+      length: 256,
+      iv: encrypted.iv,
+    };
+    return new TextDecoder().decode(
+      await crypto.subtle.decrypt(
+        algo,
+        await deriveKey(password),
+        encrypted.cipherText
+      )
+    );
+  } catch (error) {
+    throw new AuthenticationError("Unauthorized");
+  }
 }
 
 function buf2hex(buffer: ArrayBuffer) {
@@ -81,10 +92,19 @@ function fromHexStringToUint8Array(hexString: string) {
   );
 }
 
+function finishDecipher(decipher: Decipher) {
+  try {
+    return decipher.final();
+  } catch (error) {
+    throw new AuthenticationError("Unauthorized");
+  }
+}
+
 export {
   encrypt,
   decrypt,
   buf2hex,
   hex2ArrayBuffer,
   fromHexStringToUint8Array,
+  finishDecipher,
 };
