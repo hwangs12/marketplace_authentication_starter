@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: express-app
+  labels:
+    app: express-app
+spec:
+  replicas: 1
+  # selector.matchLabels.app should mamtch template.metadata.labels.app
+  selector:
+    matchLabels:
+      app: tyrone
+  template:
+    metadata:
+      labels:
+        app: tyrone
+    spec:
+      containers:
+        - name: express-app
+          image: auth-mongo-express
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 9999
+
+---
+# First, add the Service API
+apiVersion: v1
+# This will be the Service setup
+kind: Service
+metadata:
+  # Your service name
+  name: auth-mongo-express-service
+spec:
+  selector:
+    # selector that matches template.metadata.labels.app in deployment
+    app: tyrone
+  # type of service
+  type: LoadBalancer
+  ports:
+    - protocol: TCP
+      # port for exposing the service
+      port: 5000
+      # portfor exposing the pod
+      targetPort: 9999
+      # port for exposing the node
+      nodePort: 31110

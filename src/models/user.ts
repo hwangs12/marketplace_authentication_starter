@@ -16,7 +16,14 @@ const userSchema = new Schema<IUser>({
   name: { type: String, required: true },
   email: { type: String, required: true },
   password: { type: String, required: true },
-  // confirmpassword: { type: String, required: true },
+});
+
+userSchema.set("toJSON", {
+  transform: function (doc, ret, options) {
+    ret.id = ret._id;
+    delete ret._id;
+    delete ret.__v;
+  },
 });
 
 userSchema.pre("save", async function (next) {
