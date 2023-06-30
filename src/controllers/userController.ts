@@ -112,7 +112,7 @@ export const authenticate = async (req: any, res: any, next: any) => {
     const decipher = crypto.createDecipheriv("aes-256-cbc", secret, iv);
     let decrypted = decipher.update(textToDecipher);
     decrypted = Buffer.concat([decrypted, finishDecipher(decipher)]);
-    req.payload = decrypted.toString();
+
     next();
   } catch (error) {
     next(error);
