@@ -112,6 +112,7 @@ export const authenticate = async (req: any, res: any, next: any) => {
     const decipher = crypto.createDecipheriv("aes-256-cbc", secret, iv);
     let decrypted = decipher.update(textToDecipher);
     decrypted = Buffer.concat([decrypted, finishDecipher(decipher)]);
+
     next();
   } catch (error) {
     next(error);
@@ -124,7 +125,8 @@ export const getUsers = async (
   next: NextFunction
 ) => {
   try {
-    const users = await User.find({});
+    const users = await User.find({}).select({ password: false });
+    console.log(req.payload);
     res.send(users);
   } catch (error) {
     next(error);

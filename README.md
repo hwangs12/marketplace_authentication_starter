@@ -13,6 +13,11 @@ Save user info for authentication. We will never save plain text in case the db 
 5. Install dependent packages
    - `npm install`
 6. Spin up mongo database server through docker
-   - run `docker-compose up -d`
+   - run `docker-compose up -d -f ./docker/docker-compose.yaml`
 7. Spin up this server
    - run `npm run start:transpile` then open another terminal then run `npm run start:execute`
+
+## Running your server locally with docker
+
+1. docker build . -t auth-mongo-express:latest -f ./Dockerfile --no-cache
+2. docker run -d -p 5050:9999 auth-mongo-express (5050 is the access point through your localhost and 9999 is the port docker opens up with and node listens to)
