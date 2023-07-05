@@ -110,11 +110,10 @@ export const signInUser = async (
     await User.findOneAndUpdate({ email }, { loggedIn: true });
 
     res.set("user-token", userToken);
-    res.json({
+    return res.status(200).json({
       success: true,
       message: `You have successfully logged in. Welcome ${user.name}`,
     });
-    next();
   } catch (error) {
     next(error);
   }
