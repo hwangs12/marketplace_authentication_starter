@@ -11,7 +11,7 @@ import {
   fromHexStringToUint8Array,
   finishDecipher,
 } from "../utils/encryption";
-import { ResourceNotFoundError } from "../errors";
+import { AuthenticationError, ResourceNotFoundError } from "../errors";
 
 export const registerUser = async (
   req: Request,
@@ -53,9 +53,26 @@ export const signInUser = async (
         name: 1,
         email: 1,
         password: 1,
+        loggedIn: 1,
       }
     );
-
+    console.log(`The current loggedin status is ${user?.loggedIn}`);
+    // const { expirationTime, currentTime } = await authenticate(req, res, next);
+    if (user && user.loggedIn == false) {
+      console.log("Your loggedIn status is false. Let me create a new token");
+    }
+    if (user && user.loggedIn == true) {
+      console.log(
+        "Your token has not expired yet and You are already logged in"
+      );
+      return res.json({
+        success: false,
+        message:
+          "Your token has not expired yet and You are already logged in.",
+        UserloggedinStatus: user.loggedIn,
+      });
+      //if the loggedin status is true, it will return res.json and end the code here instead of proceeding to the below code.
+    }
     if (!user)
       return res.json({
         success: false,
@@ -70,10 +87,11 @@ export const signInUser = async (
       });
     // the token should have information about created time, expiration time, user email (all encrypted)
     const session_rule = `{
-      created: ${Date.now()},
-      expiration: ${Date.now() + 3600000},
-      useremail: ${email},
+      "created": "${Date.now()}",
+      "expiration": "${Date.now() + 36000}",
+      "useremail": "${email}"
     }`;
+    //3600000
     let iv = Buffer.from(user.password.substring(32, 48));
     let now = Date.now();
     let secret = Buffer.from(user.password.substring(0, 19) + now.toString());
@@ -89,8 +107,10 @@ export const signInUser = async (
     encrypted = Buffer.concat([encrypted, cipher.final()]);
     const userToken =
       encrypted.toString("hex") + iv.toString("hex") + cipherText + cipherIv;
+    await User.findOneAndUpdate({ email }, { loggedIn: true });
+
     res.set("user-token", userToken);
-    res.json({
+    return res.status(200).json({
       success: true,
       message: `You have successfully logged in. Welcome ${user.name}`,
     });
@@ -104,6 +124,7 @@ export const authenticate = async (req: any, res: any, next: any) => {
     const userToken = req.headers["authorization"];
     const iv = Buffer.from(userToken.slice(-152, -120), "hex");
     const session_definition = userToken.slice(0, -152);
+
     const secretCipherText = hex2ArrayBuffer(userToken.slice(-120, -24));
     const secretIv = fromHexStringToUint8Array(userToken.slice(-24));
     const encryptedSecret = { cipherText: secretCipherText, iv: secretIv };
@@ -112,7 +133,29 @@ export const authenticate = async (req: any, res: any, next: any) => {
     const decipher = crypto.createDecipheriv("aes-256-cbc", secret, iv);
     let decrypted = decipher.update(textToDecipher);
     decrypted = Buffer.concat([decrypted, finishDecipher(decipher)]);
+    console.log(decrypted.toString());
+    console.log(JSON.parse(decrypted.toString()).expiration);
+    console.log(Date.now());
+    const jsonedSession = JSON.parse(decrypted.toString());
+    const expirationTime = jsonedSession.expiration;
+    const currentTime = Date.now();
+    if (currentTime > expirationTime) {
+      console.log(
+        "Your token has expired. Please sign in again. This message is from authenticate"
+      );
+      await User.findOneAndUpdate(
+        { email: jsonedSession.useremail },
+        { loggedIn: false }
+      );
+      throw new AuthenticationError(
+        "Your token has expired. Please sign in again"
+      );
+    }
 
+    // next();
+    console.log(
+      `Here is the expirationTime and currentTime ${expirationTime} ${currentTime}`
+    );
     next();
   } catch (error) {
     next(error);
@@ -126,7 +169,6 @@ export const getUsers = async (
 ) => {
   try {
     const users = await User.find({}).select({ password: false });
-    console.log(req.payload);
     res.send(users);
   } catch (error) {
     next(error);
